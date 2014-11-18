@@ -14,4 +14,15 @@ struct films {
     int length;
 };
 
+struct rating {
+    QString value;
+    int count;
+};
+
+struct filmdata {
+    rating _rating;
+    QString trailer;
+    QString torrent;
+};
+
 #endif // STRUCTS_H

@@ -11,22 +11,41 @@
 #include <QTextCodec>
 using namespace std;
 
-films kinopoisk::search(QString name) {
+QString kinopoisk::request(QString url) {
     QTextCodec *codec = QTextCodec::codecForName("Windows-1251");
-    name = QString(name.toUtf8());
     QNetworkAccessManager *manager = new QNetworkAccessManager(0);
-    QUrl url("http://www.kinopoisk.ru/index.php?first=no&kp_query=" + name);
+    QUrl _url(url);
     QNetworkRequest request;
-    request.setUrl(url);
+    request.setUrl(_url);
     request.setHeader(QNetworkRequest::UserAgentHeader, "Mozilla/5.0 (X11; 2films client) Efog/2films (KHTML, like Gecko) Chrome/36.0.1944.0 Efog/0.0.1");
     QNetworkReply *r = manager->get(request);
     QEventLoop wait;
     QObject::connect(r, SIGNAL(finished()), &wait, SLOT(quit()));
     wait.exec();
-
     QByteArray reply_win1251 = r->readAll();
     QString reply = codec->toUnicode(reply_win1251);
+    return reply;
+}
 
+filmdata kinopoisk::get_film(QString link) {
+    filmdata answer;
+    QString url = link;
+    QString reply = kinopoisk::request(url);
+    QRegExp rating("<span class=\"rating_ball\">(.+)<\\/span>");
+    QRegExp ratingCount("<span class=\"ratingCount\" itemprop=\"ratingCount\">(.+)<\\/span>");
+    rating.setMinimal(true);
+    ratingCount.setMinimal(true);
+    rating.indexIn(reply, 0);
+    ratingCount.indexIn(reply, 0);
+    answer._rating.value = rating.cap(1);
+    answer._rating.count = ratingCount.cap(1).toInt();
+    answer.trailer = link + "video/";
+    return answer;
+}
+
+films kinopoisk::search(QString name) {
+    name = QString(name.toUtf8());
+    QString reply = kinopoisk::request("http://www.kinopoisk.ru/index.php?first=no&kp_query=" + name);
     film *results_temp = new film[11];
     QRegExp list("<div class=\"info\">(.+)<\\/div>");
     list.setMinimal(true);
@@ -45,7 +64,7 @@ films kinopoisk::search(QString name) {
         year.indexIn(temp_result, 0);
         genre.indexIn(temp_result, 0);
         link.indexIn(temp_result, 0);
-        temp.name = name.cap(1);
+        temp.name = name.cap(1).replace(QRegExp("&nbsp;"), " ");
         temp.year = year.cap(1);
         temp.genre = genre.cap(1);
         temp.link = "http://www.kinopoisk.ru/film/" + link.cap(1) + "/";
